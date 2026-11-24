@@ -979,7 +979,7 @@ export const make = Effect.gen(function* () {
         method: "browser-session-cookie",
         subject: grant.subject,
         scopes: grant.scopes,
-        // raphant fork: a browser signed in from Tailscale stays signed in (forkTailnetLogins.ts).
+        // raphant fork: a browser signed in from Tailscale gets the long login (forkTailnetLogins.ts).
         ...(grant.method === "one-time-token" &&
         grant.subject === PAIRING_LINK_SUBJECT &&
         isForkTailnetClient(requestMetadata)

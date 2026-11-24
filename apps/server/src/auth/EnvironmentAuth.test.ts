@@ -568,6 +568,22 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const { sessionId } = yield* sessions.verify(paired.access_token);
         expect(yield* sessionExpiry(sessionId)).toBe(pairedAt + hundredYears);
 
+        // A browser sign-in gets the long expiry only from a Tailscale address.
+        const browserExpiry = (ipAddress: string) =>
+          serverAuth.issuePairingCredential({ scopes: ["orchestration:read"] }).pipe(
+            Effect.flatMap((pairing) =>
+              serverAuth.createBrowserSession(pairing.credential, {
+                ...requestMetadata,
+                ipAddress,
+              }),
+            ),
+            Effect.map((exchange) => exchange.response.expiresAt.epochMilliseconds),
+          );
+        expect(yield* browserExpiry(tailnet.ipAddress)).toBe(pairedAt + hundredYears);
+        expect(yield* browserExpiry(requestMetadata.ipAddress)).toBe(
+          pairedAt + 30 * 24 * 60 * 60 * 1000,
+        );
+
         // Idle well past T3's 30 days: the device still renews, and renewing keeps the long expiry.
         yield* TestClock.adjust("400 days");
         const renewed = yield* serverAuth.renewAccessToken(

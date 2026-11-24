@@ -1,4 +1,5 @@
 // raphant fork: a pairing-link login from a Tailscale address lasts until revoked, not 30 days.
+// Browsers cap the cookie (Chrome: 400 days), so a browser pairs again after that.
 // Used by EnvironmentAuth.ts; SessionStore.renew never shrinks the longer expiry. Keep on merges.
 import * as NodeNet from "node:net";
 import { Duration } from "effect";
