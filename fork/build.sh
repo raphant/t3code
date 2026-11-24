@@ -12,6 +12,8 @@ set -a; . fork/connect.env; set +a
 unset GITHUB_REPOSITORY T3CODE_DESKTOP_UPDATE_REPOSITORY T3CODE_RELAY_CLIENT_OTLP_TRACES_URL \
   VITE_RELAY_OTLP_TRACES_URL VITE_RELAY_OTLP_TRACES_DATASET VITE_RELAY_OTLP_TRACES_TOKEN
 export PATH="$PWD/node_modules/.bin:$PATH"
+# Staging needs several GB; bazzite's /tmp is a shared tmpfs that fills up (EDQUOT, "system error -122").
+export TMPDIR="$HOME/.cache/t3code-fork-build"; mkdir -p "$TMPDIR"
 case $platform in
   linux) args=(--platform linux --target AppImage --arch x64) ;;
   mac) args=(--platform mac --target dmg --arch arm64) ;;
