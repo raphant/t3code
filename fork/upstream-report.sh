@@ -14,8 +14,8 @@ base="${2:-$(git merge-base HEAD "$ref")}"
 count=$(git rev-list --count "$base..$ref")
 echo "T3 has $count new commits since $(git log -1 --format='%h %cs' "$base")."
 echo
-pathspec='apps/server/src/telemetry apps/server/src/cloud apps/web/src/cloud apps/desktop/src/updates apps/desktop/src/electron/ElectronUpdater.ts packages/shared/src/telemetryId.ts scripts/build-desktop-artifact.ts docs/user/telemetry.md docs/user/managed-policy.md'
-words='posthog|ingest\.t3|axiom|otlp|telemetry|analytics|identify|homedir|\.claude\.json|auth\.json|feedurl|autoupdater|setfeedurl|sha256'
+pathspec='apps/server/src/telemetry apps/server/src/cloud apps/web/src/cloud apps/desktop/src/updates apps/desktop/src/electron/ElectronUpdater.ts packages/shared/src/telemetryId.ts scripts/build-desktop-artifact.ts docs/user/telemetry.md docs/user/managed-policy.md apps/server/src/auth infra/relay/src/environments packages/contracts/src/auth.ts'
+words='posthog|ingest\.t3|axiom|otlp|telemetry|analytics|identify|homedir|\.claude\.json|auth\.json|feedurl|autoupdater|setfeedurl|sha256|requireconnectdeviceapproval|authstandardclientscopes|cloud_mint|mintcredential|configsrc'
 echo "== Flagged by path (read these) =="
 git log --format='%h %cs %an: %s' "$base..$ref" -- $pathspec
 echo
