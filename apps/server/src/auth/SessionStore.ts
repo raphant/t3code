@@ -1010,7 +1010,11 @@ const make = Effect.gen(function* () {
       const extended = yield* authSessions
         .extend({
           sessionId: claims.sid,
-          expiresAt: DateTime.add(now, { milliseconds: Duration.toMillis(input.renewalWindow) }),
+          // raphant fork: never shrink a longer expiry (forkTailnetLogins.ts) back to the window.
+          expiresAt: DateTime.max(
+            row.value.expiresAt,
+            DateTime.add(now, { milliseconds: Duration.toMillis(input.renewalWindow) }),
+          ),
           now,
         })
         .pipe(

@@ -529,6 +529,69 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
       }).pipe(Effect.provide(layerEnvironmentAuth({ mode: "web", host: "192.168.1.50" }))),
     );
 
+    // raphant fork (forkTailnetLogins.ts): a device paired from Tailscale stays signed in.
+    it.effect("keeps a login paired from a Tailscale address until it is revoked", () =>
+      Effect.gen(function* () {
+        const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
+        const sessions = yield* SessionStore.SessionStore;
+        const admin = yield* serverAuth.issueSession({ label: "Owner" });
+        const key = makeDpopKey();
+        const tailnet = { ...requestMetadata, ipAddress: "100.105.218.88" };
+        const pair = (proofKeyThumbprint?: string) =>
+          serverAuth
+            .issuePairingCredential({ scopes: ["orchestration:read"] })
+            .pipe(
+              Effect.flatMap((pairing) =>
+                serverAuth.exchangeBootstrapCredentialForAccessToken(
+                  pairing.credential,
+                  undefined,
+                  tailnet,
+                  proofKeyThumbprint ? { proofKeyThumbprint } : undefined,
+                ),
+              ),
+            );
+        const sessionExpiry = (sessionId: string) =>
+          serverAuth
+            .listClientSessions(admin.sessionId)
+            .pipe(
+              Effect.map(
+                (sessions) =>
+                  sessions.find((session) => session.sessionId === sessionId)?.expiresAt
+                    .epochMilliseconds,
+              ),
+            );
+        const hundredYears = 36500 * 24 * 60 * 60 * 1000;
+
+        const paired = yield* pair(key.thumbprint);
+        const bearer = yield* pair();
+        const pairedAt = (yield* DateTime.now).epochMilliseconds;
+        const { sessionId } = yield* sessions.verify(paired.access_token);
+        expect(yield* sessionExpiry(sessionId)).toBe(pairedAt + hundredYears);
+
+        // Idle well past T3's 30 days: the device still renews, and renewing keeps the long expiry.
+        yield* TestClock.adjust("400 days");
+        const renewed = yield* serverAuth.renewAccessToken(
+          paired.access_token,
+          key.thumbprint,
+          Effect.void,
+        );
+        expect((yield* sessions.verify(renewed.access_token)).sessionId).toBe(sessionId);
+        expect(yield* sessionExpiry(sessionId)).toBe(pairedAt + hundredYears);
+        // A device without a proof key gets one long token.
+        yield* sessions.verify(bearer.access_token);
+
+        expect(yield* serverAuth.revokeClientSession(admin.sessionId, sessionId)).toBe(true);
+        const refused = yield* serverAuth
+          .renewAccessToken(
+            renewed.access_token,
+            key.thumbprint,
+            Effect.die("Invalid credentials cannot consume a proof."),
+          )
+          .pipe(Effect.flip);
+        expect(refused._tag).toBe("ServerAuthInvalidCredentialError");
+      }).pipe(Effect.provide(layerEnvironmentAuth({ mode: "web", host: "192.168.1.50" }))),
+    );
+
     it.effect("renews a peer link's session while it is used, and no other MCP client's", () =>
       Effect.gen(function* () {
         const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
