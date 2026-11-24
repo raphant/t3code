@@ -11,6 +11,7 @@ import * as Schema from "effect/Schema";
 import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { hashTelemetryId } from "@t3tools/shared/telemetryId";
+import { FORK_TELEMETRY_OFF } from "./forkPolicy.ts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import { CLOUD_LINKED_USER_ID } from "../cloud/config.ts";
 import * as ServerConfig from "../config.ts";
@@ -253,6 +254,7 @@ const upsertAnonymousId = Effect.gen(function* () {
 const readProviderLogins = Effect.fn("TelemetryIdentity.readProviderLogins")(function* (
   homeDirectory: string,
 ) {
+  if (FORK_TELEMETRY_OFF) return { codexTokens: Option.none(), claudeJson: Option.none() };
   const path = yield* Path.Path;
   const codexTokens = yield* readJsonIdentityFile(
     "codex",

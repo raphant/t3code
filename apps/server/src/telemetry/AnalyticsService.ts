@@ -23,6 +23,7 @@ import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import { getTelemetryIdentity, type TelemetryOwner } from "./Identify.ts";
+import { FORK_TELEMETRY_OFF } from "./forkPolicy.ts";
 
 interface BufferedAnalyticsEvent {
   readonly uuid: string;
@@ -127,7 +128,8 @@ export const make = Effect.gen(function* () {
     ManagedPolicy.deniedBy(yield* ManagedPolicy.ManagedPolicy, "telemetry") === undefined;
   // A cached PATH does not establish consent from the current login shell.
   const telemetryEnabled = Effect.suspend(() => {
-    if (!telemetryConfig.enabled || !policyAllows) return Effect.succeed(false);
+    if (FORK_TELEMETRY_OFF || !telemetryConfig.enabled || !policyAllows)
+      return Effect.succeed(false);
     if (!awaitingShellConsent) return Effect.succeed(true);
     if (hostEnvironment.T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING === "1")
       return Effect.succeed(false);
