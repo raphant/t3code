@@ -56,6 +56,7 @@ import {
   PEER_LINK_PAIRING_SUBJECT_PREFIX,
 } from "../persistence/AuthPairingLinks.ts";
 import { requestUrl } from "../requestUrl.ts";
+import { FORK_TAILNET_LOGIN_LIFETIME, isForkTailnetClient } from "./forkTailnetLogins.ts";
 
 const DEFAULT_SESSION_SUBJECT = "cli-issued-session";
 export const INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT = "administrative-bootstrap";
@@ -978,6 +979,12 @@ export const make = Effect.gen(function* () {
         method: "browser-session-cookie",
         subject: grant.subject,
         scopes: grant.scopes,
+        // raphant fork: a browser signed in from Tailscale gets the long login (forkTailnetLogins.ts).
+        ...(grant.method === "one-time-token" &&
+        grant.subject === PAIRING_LINK_SUBJECT &&
+        isForkTailnetClient(requestMetadata)
+          ? { ttl: FORK_TAILNET_LOGIN_LIFETIME }
+          : {}),
         ...(previousSession?.method === "browser-session-cookie"
           ? { replaceSessionId: previousSession.sessionId }
           : {}),
@@ -1131,6 +1138,11 @@ export const make = Effect.gen(function* () {
               input?.proofKeyThumbprint !== undefined &&
               grant.method === "one-time-token" &&
               grant.subject === PAIRING_LINK_SUBJECT;
+            // raphant fork: a pairing link used from Tailscale stays signed in (forkTailnetLogins.ts).
+            const forkTailnet =
+              grant.method === "one-time-token" &&
+              grant.subject === PAIRING_LINK_SUBJECT &&
+              isForkTailnetClient(requestMetadata);
             return yield* sessions
               .issue({
                 method: input?.proofKeyThumbprint ? "dpop-access-token" : "bearer-access-token",
@@ -1141,8 +1153,16 @@ export const make = Effect.gen(function* () {
                       proofKeyThumbprint: input.proofKeyThumbprint,
                       ttl: renewable ? RENEWABLE_ACCESS_TOKEN_TTL : Duration.hours(1),
                     }
+                  : forkTailnet
+                    ? { ttl: FORK_TAILNET_LOGIN_LIFETIME }
+                    : {}),
+                ...(renewable
+                  ? {
+                      renewalWindow: forkTailnet
+                        ? FORK_TAILNET_LOGIN_LIFETIME
+                        : RENEWABLE_SESSION_WINDOW,
+                    }
                   : {}),
-                ...(renewable ? { renewalWindow: RENEWABLE_SESSION_WINDOW } : {}),
                 replaceActiveForSubjectAndMethod: grant.method === "desktop-bootstrap",
                 client: {
                   ...requestMetadata,
